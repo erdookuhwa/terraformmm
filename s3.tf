@@ -60,27 +60,27 @@ resource "aws_iam_role" "api_lambda_role" {
     }]
   })
 
-# Update aws_iam_role to grant get DynamoDB access to the DDB table
+  # Update aws_iam_role to grant get DynamoDB access to the DDB table
   inline_policy {
-      name      = "DynamoDBAccess"
-      policy    = jsonencode({
-          Version   = "2012-10-17",
-          Statement = [
-            {
-                Action = [
-                    "dynamodb:GetItem",
-                    "dynamodb:BatchGetItem",
-                    "dynamodb:Query",
-                    "dynamodb:PutItem",
-                    "dynamodb:UpdateItem",
-                    "dynamodb:DeleteItem",
-                    "dynamodb:BatchWriteItem"
-                ],
-                Effect    : "Allow"
-                Resource  : "${aws_dynamodb_table.my_table.arn}"
-            }
-          ]
-      })
+    name = "DynamoDBAccess"
+    policy = jsonencode({
+      Version = "2012-10-17",
+      Statement = [
+        {
+          Action = [
+            "dynamodb:GetItem",
+            "dynamodb:BatchGetItem",
+            "dynamodb:Query",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:BatchWriteItem"
+          ],
+          Effect : "Allow"
+          Resource : "arn:aws:dynamodb:us-east-1:882139169766:table/erdoo-visitor-table"
+        }
+      ]
+    })
   }
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 }
@@ -176,15 +176,58 @@ resource "aws_apigatewayv2_route" "api_gateway_any_route" {
 }
 
 resource "aws_lambda_permission" "api_gateway_lambda_permission" {
-  principal     = "apigateway.amazonaws.com"
+  principal     = "s3.amazonaws.com"
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api_lambda.function_name
   qualifier     = aws_lambda_alias.api_lambda_alias.name
-  source_arn    = "${aws_apigatewayv2_api.api_gateway.execution_arn}/*/*"
+  source_arn    = "arn:aws:s3:::erdoo-api-bucket-archives"
 }
 
 output "api_gateway_invoke_url" {
   description = "API Gateway default stage invocation URL"
   value       = aws_apigatewayv2_stage.api_gateway_default_stage.invoke_url
+}
+
+# Role for api gateway
+resource "aws_iam_role" "api_gateway_role" {
+  name = "api_gateway_role"
+
+  assume_role_policy = <<EOF
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "apigateway.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    }
+    EOF
+}
+
+# Grant lambda access to the S3 bucket
+resource "aws_s3_bucket_policy" "lambda_access" {
+  # see if it can update the erdoo-api-bucket-archives bucket.id
+  bucket = aws_s3_bucket.api_bucket.id
+
+  policy = <<EOF
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AllowLambdaFunctionAccess",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "lambda.amazonaws.com"
+                },
+                "Action": "s3:*",
+                "Resource": "arn:aws:s3:::erdoo-api-bucket-archives/*"
+            }
+        ]
+    }
+    EOF
 }
