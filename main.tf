@@ -253,7 +253,7 @@ resource "aws_s3_bucket_policy" "lambda_access" {
                     "Service": "lambda.amazonaws.com"
                 },
                 "Action": "s3:*",
-                "Resource": "arn:aws:s3:::erdoo-api-bucket-archives/*"
+                "Resource": "{aws_s3_bucket.api_bucket.id/*}"
             }
         ]
     }
