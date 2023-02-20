@@ -59,6 +59,28 @@ resource "aws_iam_role" "api_lambda_role" {
       }
     }]
   })
+
+# Update aws_iam_role to grant get DynamoDB access to the DDB table
+  inline_policy {
+      name      = "DynamoDBAccess"
+      policy    = jsonencode({
+          Version   = "2012-10-17"
+          Statement = [
+              Action = [
+                  "dynamodb:GetItem",
+                  "dynamodb:BatchGetItem",
+                  "dynamodb:Query",
+                  "dynamodb:PutItem",
+                  "dynamodb:UpdateItem",
+                  "dynamodb:DeleteItem",
+                  "dynamodb:BatchWriteItem"
+              ],
+              Effect    : "Allow"
+              Resource  : "${aws_dynamodb_table.my_table.arn}"
+          ]
+      })
+  }
+  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 }
 
 resource "aws_lambda_alias" "api_lambda_alias" {
